@@ -1,0 +1,32 @@
+MEU DIA - versão PWA de teste
+=============================
+
+O que tem nesta pasta
+- index.html            o app inteiro
+- manifest.webmanifest  nome, cores e ícones para instalar na tela inicial
+- sw.js                 faz o app abrir sem internet
+- icons/                ícones do app
+
+Como publicar (gratuito)
+1. Crie uma conta em um serviço de hospedagem de sites estáticos
+   (por exemplo Netlify, Cloudflare Pages ou GitHub Pages).
+2. Envie esta pasta inteira como um novo site. Não precisa de
+   comando de build: a pasta já é o site pronto.
+3. O serviço devolve um endereço https. Abra esse endereço no celular.
+
+Como instalar no celular
+- Android (Chrome): menu de três pontos > "Adicionar à tela inicial"
+  ou "Instalar app".
+- iPhone (Safari): botão Compartilhar > "Adicionar à Tela de Início".
+
+O que saber sobre esta versão
+- Os dados ficam guardados só no aparelho e no navegador onde você usa.
+  Não há login nem sincronização entre aparelhos. Se limpar os dados do
+  navegador ou desinstalar, os registros se perdem.
+- Ainda não envia notificações. Isso exige um servidor e vem na
+  próxima etapa, junto com login.
+- Ao publicar uma atualização, troque o valor de VERSION no começo do
+  sw.js (meudia-v1, meudia-v2...) para os aparelhos baixarem a nova.
+- O app precisa ser servido por https para instalar e funcionar offline.
+  Abrir o index.html direto do computador mostra o app, mas sem essas
+  duas funções.
