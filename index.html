@@ -235,6 +235,18 @@ input:focus,textarea:focus{border-color:#7B5CFF;outline:0}
 @keyframes drift{to{transform:translate(12vmax,8vmax) scale(1.15)}}
 @keyframes float{to{transform:translate(-10px,-14px)}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+a.cloud{color:var(--ink);text-decoration:none}
+.cloud i{display:none} .cloud.pushon i{display:block}
+.tabs .none .ind{opacity:0}
+.tg{width:54px;height:32px;border-radius:999px;background:var(--soft);position:relative;flex:none;box-shadow:inset 0 0 0 2px var(--line);transition:background .2s}
+.tg::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--muted);transition:transform .25s cubic-bezier(.3,1.5,.5,1)}
+.tg[aria-checked="true"]{background:var(--g1);box-shadow:none}
+.tg[aria-checked="true"]::after{transform:translateX(22px);background:var(--on-g)}
+.fld{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.fld input[type=time],.fld select,.add input[type=time]{height:46px;border-radius:14px;border:2px solid transparent;background:var(--soft);color:var(--ink);padding:0 10px;font:inherit;flex:none}
+.add input[type=time]{width:auto}
+.row b{font-family:var(--display);font-variant-numeric:tabular-nums;padding-left:12px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -243,7 +255,7 @@ input:focus,textarea:focus{border-color:#7B5CFF;outline:0}
   <header class="top">
     <span class="ava" id="ava"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M5 20c1-4 4-5.5 7-5.5s6 1.5 7 5.5"/></svg></span>
     <div class="hi"><b id="hello">Bom dia</b><span id="dateline"></span></div>
-    <span class="cloud" id="cloud" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 9.200 4.400 4.400 0 0 0 7 18z"/></svg><i></i></span>
+    <a class="cloud" id="cloud" href="#avisos" aria-label="Lembretes e notificações"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.500 2h-15zM10 20.500a2 2 0 0 0 4 0"/></svg><i></i></a>
   </header>
   <p class="sync" id="sync" role="status"></p>
   <main id="view"></main>
@@ -292,6 +304,7 @@ var IC={
   list:'<path d="M10 6h10M10 12h10M10 18h10M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
   chart:'<path d="M5 20V11M12 20V4M19 20v-7"/>',
   cal:'<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M8 3v4M16 3v4"/>',
+  bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.500 2h-15zM10 20.500a2 2 0 0 0 4 0"/>',
   check:'<path d="M5 12.500l4.500 4.500L19 7.500"/>'
 };
 var MOUTH=['M8.500 16.500c2-2.500 5-2.500 7 0','M9 16c2-1.200 4-1.200 6 0','M9 15.500h6','M9 14.500c2 1.500 4 1.500 6 0','M8 14c2.500 3.500 5.500 3.500 8 0'];
@@ -360,7 +373,7 @@ function setSync(){
   else if(saveErr){t='Não foi possível salvar. Confira a conexão.';c='warn'}
   else if(busy){t='Salvando…';c='busy'}
   else if(stale){t='Sem conexão. Mostrando a cópia deste aparelho.';c='warn'}
-  $('#cloud').className='cloud '+c;
+  $('#cloud').className='cloud'+(R.on?' pushon':'');
   var el=$('#sync'); el.textContent=t; el.hidden=!t;
 }
 function connect(){mode='local';setSync()}
@@ -389,6 +402,64 @@ function renderTop(){
 }
 function head(g,icon,label,title,extra){
   return '<div class="head"><span class="ic '+g+'">'+ico(icon)+'</span><div class="ttl"><span class="lbl">'+label+'</span><h3>'+title+'</h3></div>'+(extra||'')+'</div>';
+}
+
+/* ---------- lembretes ---------- */
+var PUSH_URL="https://fwhyphafwsypkxpwpzvl.supabase.co/functions/v1/lembretes", VAPID="BBQC_fUAWpCMWUn8lh7Ewi4CZzuvu2PgeDRlHlF5Gw2akUXOeFNe0iG-3P_bMcZ9r1bX_OIO66ISiWlrcLcUf0k";
+var R=(function(){var d={on:false,morning:{on:true,time:'08:00'},water:{on:true,from:'09:00',to:'20:00',every:120},custom:[]};
+  try{var s=JSON.parse(localStorage.getItem('meudia:rem'));if(s&&typeof s==='object'){d.on=!!s.on;Object.assign(d.morning,obj(s.morning));Object.assign(d.water,obj(s.water));if(Array.isArray(s.custom))d.custom=s.custom}}catch(e){}
+  return d})();
+var remT=0;
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function isStandalone(){return navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)}
+function keyBytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+function getSub(){return navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription()})}
+function api(body){return fetch(PUSH_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok||j.error)throw new Error(j.error||('erro '+r.status));return j})})}
+function note(m){ui.pushMsg=m;if(ui.tab==='avisos')render();setSync()}
+function sendR(sub,test){return api({action:'save',sub:sub.toJSON(),tz:Intl.DateTimeFormat().resolvedOptions().timeZone,reminders:{morning:R.morning,water:R.water,custom:R.custom},test:!!test})}
+function saveR(){
+  try{localStorage.setItem('meudia:rem',JSON.stringify(R))}catch(e){}
+  if(!R.on||!PUSH_URL) return;
+  clearTimeout(remT); remT=setTimeout(function(){getSub().then(function(s){if(!s)throw new Error('inscrição perdida');return sendR(s)}).then(function(){note('Lembretes salvos.')},function(e){note('Não foi possível salvar os lembretes: '+e.message)})},700);
+}
+function pushOn(){
+  note('Ativando…');
+  Notification.requestPermission().then(function(p){
+    if(p!=='granted') throw new Error('permissão negada. Libere as notificações do Meu Dia nos Ajustes do aparelho');
+    return navigator.serviceWorker.ready;
+  }).then(function(r){return r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(VAPID)})})
+  .then(function(s){return sendR(s,true)})
+  .then(function(){R.on=true;try{localStorage.setItem('meudia:rem',JSON.stringify(R))}catch(e){};note('Notificações ativadas. Um aviso de teste foi enviado.')},
+        function(e){note('Não foi possível ativar: '+e.message)});
+}
+function pushOff(){
+  getSub().then(function(s){if(!s)return;return api({action:'remove',endpoint:s.endpoint}).catch(function(){}).then(function(){return s.unsubscribe()})})
+  .then(function(){R.on=false;try{localStorage.setItem('meudia:rem',JSON.stringify(R))}catch(e){};note('Notificações desativadas neste aparelho.')},function(e){note('Não foi possível desativar: '+e.message)});
+}
+function pushTest(){getSub().then(function(s){if(!s)throw new Error('inscrição perdida, ative de novo');return api({action:'test',endpoint:s.endpoint})}).then(function(){note('Aviso de teste enviado.')},function(e){note('Falha no teste: '+e.message)})}
+function tg(k,on,label){return '<button class="tg" role="switch" aria-checked="'+!!on+'" data-act="tgl-rem" data-k="'+k+'" aria-label="'+label+'"></button>'}
+function viewAvisos(){
+  var ios=/iP(hone|ad|od)/.test(navigator.userAgent), o='';
+  o+='<section class="glass">'+head('g1','bell',R.on?'Ativas neste aparelho':'Desativadas','Notificações');
+  if(!PUSH_URL) o+='<p class="empty">O servidor de lembretes ainda não foi configurado nesta versão.</p>';
+  else if(ios&&!isStandalone()) o+='<p class="empty">No iPhone, as notificações só funcionam com o app aberto pelo ícone da Tela de Início. No Safari, toque em Compartilhar, depois em Adicionar à Tela de Início, e abra o Meu Dia por lá.</p>';
+  else if(!pushSupported()) o+='<p class="empty">Este navegador não oferece notificações para apps da web.</p>';
+  else if(R.on) o+='<div class="acts"><button class="pill ghost" data-act="push-test">Enviar teste</button><button class="pill ghost" data-act="push-off">Desativar</button></div>';
+  else o+='<div class="acts"><button class="pill" data-act="push-on">Ativar notificações</button></div>';
+  if(ui.pushMsg) o+='<p class="empty" role="status">'+esc(ui.pushMsg)+'</p>';
+  o+='</section>';
+  o+='<section class="glass">'+head('g2','sun','Todo dia','Resumo de manhã',tg('morning',R.morning.on,'Resumo de manhã'))+
+     '<label class="fld">Horário <input type="time" id="r-morning" data-r="morning.time" value="'+esc(R.morning.time)+'"></label></section>';
+  o+='<section class="glass">'+head('g4','drop','Ao longo do dia','Beber água',tg('water',R.water.on,'Lembrete de água'))+
+     '<div class="fld"><label class="fld">Das <input type="time" id="r-wfrom" data-r="water.from" value="'+esc(R.water.from)+'"></label><label class="fld">às <input type="time" id="r-wto" data-r="water.to" value="'+esc(R.water.to)+'"></label></div>'+
+     '<label class="fld">A cada <select id="r-wevery" data-r="water.every">'+[[60,'1 hora'],[90,'1h30'],[120,'2 horas'],[180,'3 horas']].map(function(x){return '<option value="'+x[0]+'"'+(+R.water.every===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></label></section>';
+  o+='<section class="glass">'+head('g3','pen','Todo dia, no horário escolhido','Meus lembretes');
+  if(R.custom.length){o+='<ul class="list">';R.custom.slice().sort(function(a,b){return a.time<b.time?-1:1}).forEach(function(c){
+    o+='<li class="row"><b>'+esc(c.time)+'</b><span class="t">'+esc(c.text)+'</span><button class="x" data-act="del-rem" data-id="'+esc(c.id)+'" aria-label="Apagar lembrete">×</button></li>'});o+='</ul>'}
+  else o+='<p class="empty">Nenhum lembrete seu ainda. Exemplo: "Tomar vitamina" às 13:00.</p>';
+  o+='<form class="add g3" data-form="rem" style="flex-wrap:wrap"><input type="text" id="rem-text" placeholder="Lembrar de…" maxlength="120" autocomplete="off" aria-label="Texto do lembrete">'+
+     '<input type="time" id="rem-time" value="12:00" aria-label="Horário do lembrete"><button class="rb solid lg" aria-label="Adicionar lembrete">+</button></form></section>';
+  return o;
 }
 
 /* ---------- views ---------- */
@@ -505,12 +576,12 @@ function render(remote){
   needsRender=false;
   var keep={}, focusId=a&&v.contains(a)?a.id:null, pk=v.querySelector('.picker'), sx=pk?pk.scrollLeft:0;
   v.querySelectorAll('input[id]:not([data-week])').forEach(function(e){keep[e.id]=e.value});
-  v.innerHTML=ui.tab==='saude'?viewSaude():ui.tab==='notas'?viewNotas():viewHoje();
+  v.innerHTML=ui.tab==='saude'?viewSaude():ui.tab==='notas'?viewNotas():ui.tab==='avisos'?viewAvisos():viewHoje();
   for(var id in keep){var e=document.getElementById(id);if(e)e.value=keep[id]}
   if(focusId){var f=document.getElementById(focusId);if(f)f.focus()}
   pk=v.querySelector('.picker'); if(pk)pk.scrollLeft=sx;
   var tabs=['hoje','saude','notas'];
-  $('#nav').style.setProperty('--i',tabs.indexOf(ui.tab));
+  var ti=tabs.indexOf(ui.tab);$('#nav').classList.toggle('none',ti<0);if(ti>=0)$('#nav').style.setProperty('--i',ti);
   document.querySelectorAll('.tabs a').forEach(function(x){var on=x.dataset.tab===ui.tab;x.classList.toggle('on',on);if(on)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});
   var bar=$('#ringbar'); if(bar) requestAnimationFrame(function(){requestAnimationFrame(function(){bar.setAttribute('stroke-dashoffset',bar.dataset.to)})});
   renderTop();
@@ -547,6 +618,11 @@ function act(a,el){
       ui.note=null; renderSheet(); save('notes'); break;
     case 'del-note': if(!ui.confirmDel){ui.confirmDel=true;renderSheet();return}
       S.notes.items=S.notes.items.filter(function(x){return x.id!==ui.note.id}); ui.note=null; renderSheet(); save('notes'); break;
+    case 'push-on': pushOn(); return;
+    case 'push-off': pushOff(); return;
+    case 'push-test': pushTest(); return;
+    case 'tgl-rem': R[el.dataset.k].on=!R[el.dataset.k].on; saveR(); break;
+    case 'del-rem': R.custom=R.custom.filter(function(x){return x.id!==id}); saveR(); break;
     default: return;
   }
   render();
@@ -562,6 +638,14 @@ document.addEventListener('submit',function(e){
     S.tasks.items.push({id:uid(),text:v,done:false,at:Date.now()});inp.value='';save('tasks');render();$('#task-new').focus()}
   if(f==='habit'){inp=$('#habit-new');v=inp.value.trim();if(!v){inp.focus();return}
     S.habits.items.push({id:uid(),name:v,icon:ui.icon,at:Date.now()});inp.value='';save('habits');render()}
+  if(f==='rem'){inp=$('#rem-text');v=inp.value.trim();var tm=$('#rem-time').value;if(!v||!/^\d\d:\d\d$/.test(tm)){inp.focus();return}
+    if(R.custom.length>=20){note('Limite de 20 lembretes.');return}
+    R.custom.push({id:uid(),text:v,time:tm});inp.value='';saveR();render()}
+});
+document.addEventListener('change',function(e){
+  var t=e.target, r=t.dataset&&t.dataset.r; if(!r) return;
+  var k=r.split('.'); if(t.type==='time'&&!/^\d\d:\d\d$/.test(t.value)) return;
+  R[k[0]][k[1]]=k[1]==='every'?+t.value:t.value; saveR();
 });
 document.addEventListener('input',function(e){
   var t=e.target;
@@ -573,7 +657,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.note){ui
 document.addEventListener('visibilitychange',function(){if(!document.hidden)render(true)});
 var enterT=0;
 function route(){
-  var h=location.hash.slice(1);ui.tab=(h==='saude'||h==='notas')?h:'hoje';
+  var h=location.hash.slice(1);ui.tab=(h==='saude'||h==='notas'||h==='avisos')?h:'hoje';
   var v=$('#view');v.classList.remove('enter');render();void v.offsetWidth;v.classList.add('enter');
   clearTimeout(enterT);enterT=setTimeout(function(){v.classList.remove('enter')},1000);
   window.scrollTo(0,0);
@@ -602,6 +686,7 @@ function tick(){
 }
 
 setSync(); route(); connect();
+if(R.on&&pushSupported()) getSub().then(function(s){if(!s){R.on=false;try{localStorage.setItem('meudia:rem',JSON.stringify(R))}catch(e){};setSync();if(ui.tab==='avisos')render()}}).catch(function(){});
 })();
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 </script>
